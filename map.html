@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link rel="manifest" href="manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#040d15">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>SwellCast — Find Your Break</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--deep:#040d15;--ocean:#071828;--land:#0e2540;--land-s:rgba(38,196,154,0.22);--tide:#1a8c6e;--glow:#26c49a;--glow-f:rgba(38,196,154,0.06);--text:#ddeee8;--muted:#5a8098;--border:rgba(38,196,154,0.12);--border-md:rgba(38,196,154,0.22);--fav:#ffb830}
+html,body{width:100%;height:100%;overflow:hidden;-webkit-tap-highlight-color:transparent}
+body{background:var(--deep);color:var(--text);font-family:'DM Sans',sans-serif;display:flex;flex-direction:column}
+header{position:relative;z-index:20;flex-shrink:0;height:54px;padding:0 1rem;display:flex;align-items:center;gap:0.6rem;border-bottom:0.5px solid var(--border);background:rgba(4,13,21,0.98);backdrop-filter:blur(16px)}
+.wordmark{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:0.08em;line-height:1;flex-shrink:0}
+.wordmark span{color:var(--glow)}
+.search-wrap{flex:1;position:relative;min-width:0}
+.si{position:absolute;left:9px;top:50%;transform:translateY(-50%);width:12px;height:12px;stroke:var(--muted);pointer-events:none;fill:none;stroke-width:1.5;stroke-linecap:round}
+#search{width:100%;padding:7px 10px 7px 28px;background:rgba(255,255,255,0.04);border:0.5px solid var(--border-md);border-radius:9px;font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--text);letter-spacing:0.05em;outline:none;transition:border-color .15s,background .15s}
+#search::placeholder{color:var(--muted)}
+#search:focus{border-color:var(--glow);background:rgba(38,196,154,0.04)}
+#fav-toggle-btn{display:flex;align-items:center;gap:5px;padding:6px 10px;border-radius:9px;cursor:pointer;border:0.5px solid var(--border-md);background:transparent;font-family:'DM Mono',monospace;font-size:0.58rem;letter-spacing:0.07em;color:var(--muted);text-transform:uppercase;transition:all .15s;flex-shrink:0;white-space:nowrap}
+#fav-toggle-btn svg{width:11px;height:11px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+#fav-toggle-btn.active{border-color:var(--fav);color:var(--fav);background:rgba(255,184,48,0.08)}
+#fav-count{display:none;background:var(--fav);color:#1a0e00;font-size:0.48rem;font-weight:700;padding:1px 5px;border-radius:5px;line-height:1.4}
+#fav-toggle-btn.has-favs #fav-count{display:inline}
+#search-dd{display:none;position:absolute;z-index:999;background:rgba(4,13,21,0.99);border:0.5px solid var(--border-md);border-radius:12px;width:100%;max-height:240px;overflow-y:auto;top:calc(100% + 6px);left:0;box-shadow:0 12px 40px rgba(0,0,0,0.7)}
+#search-dd.open{display:block}
+.dd-item{padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;border-bottom:0.5px solid var(--border);transition:background .1s}
+.dd-item:last-child{border-bottom:none}
+.dd-item:hover,.dd-item:active{background:var(--glow-f)}
+.dd-name{font-size:0.8rem;color:var(--text)}
+.dd-sub{font-family:'DM Mono',monospace;font-size:0.55rem;color:var(--muted);margin-top:1px}
+.dd-type{font-family:'DM Mono',monospace;font-size:0.48rem;letter-spacing:0.07em;padding:2px 6px;border-radius:4px;flex-shrink:0;text-transform:uppercase}
+.dd-r{background:var(--glow-f);color:var(--glow);border:0.5px solid var(--border-md)}
+.dd-b{background:rgba(255,184,48,0.08);color:var(--fav);border:0.5px solid rgba(255,184,48,0.2)}
+.dd-empty{padding:16px;text-align:center;font-family:'DM Mono',monospace;font-size:0.6rem;color:var(--muted)}
+#map-wrap{flex:1;position:relative;overflow:hidden;z-index:1;min-height:0}
+/* #world-svg handled in sheet section */
+.sphere{fill:var(--ocean)}.graticule{fill:none;stroke:rgba(38,196,154,0.05);stroke-width:0.4}.country{fill:var(--land);stroke:var(--land-s);stroke-width:0.35}
+.pin-group{cursor:pointer}
+.pin-pulse{fill:none;stroke:rgba(38,196,154,0.3);stroke-width:1;pointer-events:none;animation:ripple 2.8s ease-out infinite}
+@keyframes ripple{0%{r:7;stroke-opacity:.5}100%{r:22;stroke-opacity:0}}
+.pin-bg{fill:rgba(14,50,72,0.9);stroke:rgba(38,196,154,0.65);stroke-width:1;transition:fill .12s,stroke .12s}
+.pin-dot{fill:var(--glow);transition:fill .12s}
+.pin-fav-dot{fill:var(--fav);opacity:0;transition:opacity .2s;pointer-events:none}
+.pin-label{font-family:'DM Mono',monospace;font-size:7.5px;font-weight:500;fill:rgba(180,220,210,0.8);paint-order:stroke;stroke:#040d15;stroke-width:3px;stroke-linejoin:round;pointer-events:none;letter-spacing:0.04em}
+.pin-group.hovered .pin-bg{fill:rgba(38,196,154,0.2);stroke:var(--glow);stroke-width:1.5}
+.pin-group.hovered .pin-dot{fill:#fff}
+.pin-group.hovered .pin-label{fill:#fff}
+.pin-group.selected .pin-bg{fill:rgba(38,196,154,0.25);stroke:#00e5b4;stroke-width:2}
+.pin-group.selected .pin-dot{fill:#fff}
+.pin-group.selected .pin-label{fill:#fff}
+.pin-group.faved .pin-bg{stroke:var(--fav)}
+.pin-group.faved .pin-fav-dot{opacity:1}
+#map-loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:var(--deep);z-index:5;font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--muted);letter-spacing:0.12em;text-transform:uppercase}
+#no-favs{display:none;position:absolute;inset:0;z-index:4;flex-direction:column;align-items:center;justify-content:center;gap:0.75rem;pointer-events:none}
+#no-favs svg{width:32px;height:32px;stroke:var(--muted);opacity:.3}
+#no-favs p{font-family:'DM Mono',monospace;font-size:0.58rem;color:var(--muted);letter-spacing:0.08em;text-align:center;line-height:1.9}
+/* Sheet */
+#sheet{position:absolute;bottom:0;left:0;right:0;z-index:30;background:rgba(5,16,30,0.98);border-top:0.5px solid var(--border-md);border-radius:22px 22px 0 0;backdrop-filter:blur(24px);transform:translateY(100%);transition:transform 0.38s cubic-bezier(0.22,1,0.36,1);padding-bottom:env(safe-area-inset-bottom,0);max-height:62%;overflow:hidden;display:flex;flex-direction:column}
+#sheet.open{transform:translateY(0)}
+/* Map SVG nudges up when sheet opens */
+#world-svg{width:100%;height:100%;display:block;transition:transform 0.38s cubic-bezier(0.22,1,0.36,1)}
+#map-wrap.sheet-open #world-svg{transform:translateY(-18%)}
+.sheet-handle{flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:12px 0 6px;cursor:pointer}
+.sheet-handle::before{content:'';width:38px;height:4px;border-radius:2px;background:rgba(255,255,255,0.12)}
+.sheet-head{flex-shrink:0;padding:2px 1.1rem 0.9rem;display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem}
+.sheet-region{font-family:'Bebas Neue',sans-serif;font-size:1.9rem;letter-spacing:0.04em;line-height:1;color:var(--text)}
+.sheet-head-right{display:flex;align-items:center;gap:8px;flex-shrink:0;padding-top:6px}
+#fav-btn{width:36px;height:36px;border-radius:9px;background:transparent;border:0.5px solid var(--border-md);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
+#fav-btn svg{width:14px;height:14px;fill:none;stroke:var(--muted);stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;transition:all .15s}
+#fav-btn.faved{border-color:rgba(255,184,48,.5);background:rgba(255,184,48,.08)}
+#fav-btn.faved svg{stroke:var(--fav);fill:var(--fav)}
+#view-btn{padding:9px 20px;border-radius:10px;background:var(--tide);border:none;cursor:pointer;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:0.1em;color:var(--text);transition:background .15s,transform .1s;white-space:nowrap}
+#view-btn:hover{background:var(--glow)}
+#view-btn:active{transform:scale(0.97)}
+.sheet-spots{flex-shrink:0;display:flex;gap:9px;padding:0 1.1rem 1.2rem;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.sheet-spots::-webkit-scrollbar{display:none}
+.spot-card{flex-shrink:0;width:126px;background:rgba(12,36,60,0.85);border:0.5px solid var(--border);border-radius:13px;padding:0.8rem 0.9rem;display:flex;flex-direction:column;gap:5px;transition:border-color .2s}
+.spot-card:hover{border-color:var(--border-md)}
+.spot-name{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:0.04em;line-height:1;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.spot-loc{font-family:'DM Mono',monospace;font-size:0.48rem;color:var(--muted);letter-spacing:0.07em;text-transform:uppercase}
+.spot-div{height:0.5px;background:var(--border);margin:3px 0}
+.spot-stats{display:flex;flex-direction:column;gap:4px}
+.s-stat{display:flex;justify-content:space-between;align-items:baseline}
+.s-lbl{font-family:'DM Mono',monospace;font-size:0.46rem;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase}
+.s-val{font-size:0.85rem;font-weight:300;color:var(--text);line-height:1}
+.s-val em{font-style:normal;font-size:0.5rem;color:var(--muted)}
+.spot-badge{align-self:flex-start;margin-top:3px;padding:2px 8px 3px;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:0.72rem;letter-spacing:0.1em;border:1px solid}
+.spot-loading{font-family:'DM Mono',monospace;font-size:0.52rem;color:var(--muted);letter-spacing:0.07em;padding:6px 0;animation:blink 1.4s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+#tooltip{position:fixed;z-index:300;display:none;pointer-events:none;white-space:nowrap;background:rgba(4,13,21,0.97);border:0.5px solid rgba(38,196,154,0.4);border-radius:8px;padding:7px 12px;font-family:'DM Mono',monospace;font-size:0.58rem;color:var(--text);letter-spacing:0.04em}
+.tt-name{font-size:0.68rem;font-weight:500;color:var(--glow);margin-bottom:3px}
+.tt-spots{color:var(--muted)}
+</style>
+</head>
+<body>
+<header>
+  <div class="wordmark">SWELL<span>CAST</span></div>
+  <div class="search-wrap">
+    <svg class="si" viewBox="0 0 16 16"><circle cx="6.5" cy="6.5" r="4.5"/><line x1="10.5" y1="10.5" x2="14" y2="14"/></svg>
+    <input id="search" type="text" placeholder="Search regions or beaches…" autocomplete="off" spellcheck="false">
+    <div id="search-dd"></div>
+  </div>
+  <button id="fav-toggle-btn" onclick="toggleFavFilter()">
+    <svg viewBox="0 0 16 16"><path d="M8 13.5S2 9.5 2 5.5A3.5 3.5 0 018 3a3.5 3.5 0 016 2c0 4-6 8.5-6 8.5z"/></svg>
+    Favs<span id="fav-count"></span>
+  </button>
+</header>
+
+<div id="map-wrap">
+  <svg id="world-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+  <div id="map-loading">Loading map…</div>
+  <div id="no-favs">
+    <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"><path d="M12 21S4 14 4 8.5A5 5 0 0112 5a5 5 0 018 3.5C20 14 12 21 12 21z"/></svg>
+    <p>No favourite regions yet.<br>Tap the heart on any region.</p>
+  </div>
+  <div id="sheet">
+    <div class="sheet-handle" onclick="closeSheet()"></div>
+    <div class="sheet-head">
+      <div class="sheet-region" id="sheet-region">—</div>
+      <div class="sheet-head-right">
+        <button id="fav-btn" onclick="toggleRegionFav()" title="Save to favourites">
+          <svg viewBox="0 0 16 16"><path d="M8 13.5S2 9.5 2 5.5A3.5 3.5 0 018 3a3.5 3.5 0 016 2c0 4-6 8.5-6 8.5z"/></svg>
+        </button>
+        <button id="view-btn" onclick="goToDashboard()">View Conditions →</button>
+      </div>
+    </div>
+    <div class="sheet-spots" id="sheet-spots"></div>
+  </div>
+</div>
+<div id="tooltip"><div class="tt-name" id="tt-name"></div><div class="tt-spots" id="tt-spots"></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<script src="ocean-api.js"></script>
+<script>
+let selectedId=null,selectedName=null;
+const FAV_KEY='swellcast_fav_regions';
+function getFavs(){try{return JSON.parse(sessionStorage.getItem(FAV_KEY))||[];}catch(e){return[];}}
+function saveFavs(a){try{sessionStorage.setItem(FAV_KEY,JSON.stringify(a));}catch(e){}}
+function isFav(id){return getFavs().includes(id);}
+function toggleFavId(id){const f=getFavs();const i=f.indexOf(id);i>=0?f.splice(i,1):f.push(id);saveFavs(f);}
+let showFavsOnly=false;
+
+function toggleFavFilter(){showFavsOnly=!showFavsOnly;document.getElementById('fav-toggle-btn').classList.toggle('active',showFavsOnly);applyPinFilter();}
+
+function applyPinFilter(){
+  const favs=getFavs();
+  document.querySelectorAll('.pin-group').forEach(pin=>{
+    const rid=pin.getAttribute('data-region');
+    const show=!showFavsOnly||favs.includes(rid);
+    pin.style.opacity=show?'1':'0.1';
+    pin.style.pointerEvents=show?'all':'none';
+  });
+  document.getElementById('no-favs').style.display=(showFavsOnly&&!favs.length)?'flex':'none';
+  refreshFavCount();
+}
+
+function refreshFavCount(){
+  const n=getFavs().length;
+  document.getElementById('fav-toggle-btn').classList.toggle('has-favs',n>0);
+  document.getElementById('fav-count').textContent=n;
+}
+
+function openSheet(rid,rname,beaches){
+  selectedId=rid;selectedName=rname;
+  document.getElementById('sheet-region').textContent=rname;
+  document.getElementById('fav-btn').classList.toggle('faved',isFav(rid));
+  document.getElementById('sheet').classList.add('open');
+  document.getElementById('map-wrap').classList.add('sheet-open');
+  renderSpotCards(beaches);
+}
+
+function closeSheet(){
+  document.getElementById('sheet').classList.remove('open');
+  document.getElementById('map-wrap').classList.remove('sheet-open');
+  document.querySelectorAll('.pin-group').forEach(p=>p.classList.remove('selected','hovered'));
+  selectedId=null;
+}
+
+// Tap map background to close sheet
+document.getElementById('world-svg').addEventListener('click',e=>{
+  if(e.target.classList.contains('sphere')||e.target.classList.contains('country')||e.target.classList.contains('graticule'))
+    closeSheet();
+});
+
+function toggleRegionFav(){
+  if(!selectedId)return;
+  toggleFavId(selectedId);
+  document.getElementById('fav-btn').classList.toggle('faved',isFav(selectedId));
+  const pin=document.querySelector('.pin-group[data-region="'+selectedId+'"]');
+  if(pin)pin.classList.toggle('faved',isFav(selectedId));
+  applyPinFilter();
+}
+
+function ratingStyle(score){
+  if(score<=20)return{label:'Flat',color:'#ff6b6b',bg:'rgba(255,107,107,0.14)',border:'#ff6b6b'};
+  if(score<=50)return{label:'Fair',color:'#ffb830',bg:'rgba(255,184,48,0.14)',border:'#ffb830'};
+  if(score<=75)return{label:'Good',color:'#4ecb71',bg:'rgba(78,203,113,0.14)',border:'#4ecb71'};
+  return{label:'Epic',color:'#00e5b4',bg:'rgba(0,229,180,0.14)',border:'#00e5b4'};
+}
+
+function renderSpotCards(beaches){
+  const c=document.getElementById('sheet-spots');
+  c.innerHTML='';
+  beaches.forEach(beach=>{
+    const card=document.createElement('div');
+    card.className='spot-card';
+    const sid='sl_'+beach.name.replace(/[^a-z0-9]/gi,'_');
+    card.innerHTML=`<div class="spot-name">${beach.name}</div><div class="spot-loc">${beach.country}</div><div class="spot-div"></div><div class="spot-loading" id="${sid}">Fetching…</div>`;
+    c.appendChild(card);
+    // Fetch mini preview
+    (async()=>{
+      const el=document.getElementById(sid);
+      try{
+        const url=`https://marine-api.open-meteo.com/v1/marine?latitude=${beach.lat}&longitude=${beach.lng}&hourly=wave_height,wave_period,wind_wave_height&timezone=auto&forecast_days=1`;
+        const d=await(await fetch(url)).json();
+        const h=d.hourly;
+        const now=new Date();let idx=0;
+        for(let i=0;i<h.time.length;i++){if(new Date(h.time[i])<=now)idx=i;else break;}
+        const wh=h.wave_height[idx],wp=h.wave_period[idx],wwh=h.wind_wave_height[idx];
+        const score=surfRating(wh,wp,wwh);
+        const rs=ratingStyle(score);
+        if(el)el.outerHTML=`<div class="spot-stats"><div class="s-stat"><span class="s-lbl">Wave</span><span class="s-val">${wh.toFixed(1)}<em>m</em></span></div><div class="s-stat"><span class="s-lbl">Period</span><span class="s-val">${wp.toFixed(0)}<em>s</em></span></div></div><div class="spot-badge" style="color:${rs.color};background:${rs.bg};border-color:${rs.border}">${rs.label}</div>`;
+      }catch(e){if(el)el.textContent='—';}
+    })();
+  });
+}
+
+// Search
+const searchEl=document.getElementById('search'),dropEl=document.getElementById('search-dd');
+searchEl.addEventListener('input',()=>{
+  const q=searchEl.value.trim().toLowerCase();
+  if(!q){dropEl.classList.remove('open');return;}
+  const results=[];
+  REGIONS.forEach(r=>{if(r.label.toLowerCase().includes(q))results.push({type:'region',id:r.id,name:r.label,sub:getBeachesForRegion(r.id).length+' surf spots'});});
+  ALL_BEACHES.forEach(b=>{
+    if(b.name.toLowerCase().includes(q)||b.country.toLowerCase().includes(q)){
+      const reg=REGIONS.find(r=>r.id===b.region);
+      results.push({type:'beach',id:b.region,name:b.name,sub:b.country+(reg?' · '+reg.label:'')});
+    }
+  });
+  dropEl.innerHTML=results.length
+    ?results.slice(0,8).map(r=>`<div class="dd-item" data-rid="${r.id}"><div style="flex:1"><div class="dd-name">${r.name}</div><div class="dd-sub">${r.sub}</div></div><div class="dd-type ${r.type==='region'?'dd-r':'dd-b'}">${r.type}</div></div>`).join('')
+    :`<div class="dd-empty">No results for "${searchEl.value}"</div>`;
+  dropEl.querySelectorAll('.dd-item').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const reg=REGIONS.find(r=>r.id===el.getAttribute('data-rid'));
+      if(reg)selectRegion(reg.id,reg.label,getBeachesForRegion(reg.id));
+      searchEl.value='';dropEl.classList.remove('open');
+    });
+  });
+  dropEl.classList.add('open');
+});
+searchEl.addEventListener('keydown',e=>{if(e.key==='Escape'){dropEl.classList.remove('open');searchEl.blur();}});
+document.addEventListener('click',e=>{if(!searchEl.contains(e.target)&&!dropEl.contains(e.target))dropEl.classList.remove('open');});
+
+const LABEL_OFFSET={"hawaii":[-2,20],"california":[-13,15],"pacific-nw":[-15,15],"east-coast-us":[13,15],"mexico":[0,20],"central-america":[0,20],"south-america-pac":[-15,15],"brazil":[13,15],"uk-ireland":[-15,13],"europe-atlantic":[0,20],"morocco":[0,20],"canaries":[0,20],"south-africa":[0,20],"australia-east":[13,15],"australia-west":[-15,15],"indonesia":[0,20],"japan":[13,15]};
+
+async function buildMap(){
+  const wrap=document.getElementById('map-wrap');
+  const svg=d3.select('#world-svg');
+  // Wait for real layout dimensions — critical inside iframe
+  await new Promise(resolve=>{
+    if(wrap.clientWidth>10){resolve();return;}
+    const ro=new ResizeObserver(()=>{if(wrap.clientWidth>10){ro.disconnect();resolve();}});
+    ro.observe(wrap);
+    setTimeout(resolve,1000);
+  });
+  const W=wrap.clientWidth,H=wrap.clientHeight;
+  svg.attr('viewBox',`0 0 ${W} ${H}`).attr('width',W).attr('height',H);
+  const sphere={type:'Sphere'};
+  const proj=d3.geoNaturalEarth1().fitExtent([[8,6],[W-8,H-6]],sphere);
+  const path=d3.geoPath().projection(proj);
+  // Zoom group — everything inside zooms/pans together
+  const zoomG = svg.append('g').attr('class','zoom-g');
+  zoomG.append('path').datum(sphere).attr('class','sphere').attr('d',path);
+  zoomG.append('path').datum(d3.geoGraticule().step([30,30])()).attr('class','graticule').attr('d',path);
+  let world;
+  try{world=await d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');}
+  catch(e){document.getElementById('map-loading').textContent='Map unavailable';return;}
+  zoomG.selectAll('.country').data(topojson.feature(world,world.objects.countries).features).enter().append('path').attr('class','country').attr('d',path);
+  const tooltip=document.getElementById('tooltip');
+  REGIONS.forEach((region,i)=>{
+    const coords=proj([region.lng,region.lat]);
+    if(!coords||isNaN(coords[0]))return;
+    const[px,py]=coords;
+    const beaches=getBeachesForRegion(region.id);
+    const offset=LABEL_OFFSET[region.id]||[0,20];
+    const g=zoomG.append('g').attr('class','pin-group'+(isFav(region.id)?' faved':'')).attr('data-region',region.id).attr('transform',`translate(${px.toFixed(1)},${py.toFixed(1)})`);
+    g.append('circle').attr('class','pin-pulse').attr('r',7).style('animation-delay',`${i*0.13}s`);
+    g.append('circle').attr('class','pin-bg').attr('r',9);
+    g.append('circle').attr('class','pin-dot').attr('r',3.5);
+    g.append('circle').attr('class','pin-fav-dot').attr('r',3).attr('cx',7).attr('cy',-7);
+    g.append('text').attr('class','pin-label').attr('x',offset[0]).attr('y',offset[1]).attr('text-anchor',offset[0]<-3?'end':offset[0]>3?'start':'middle').text(region.label);
+    g.on('mouseenter',function(e){
+      if(!this.classList.contains('selected'))this.classList.add('hovered');
+      document.getElementById('tt-name').textContent=region.label;
+      document.getElementById('tt-spots').textContent=beaches.map(b=>b.name).join(' · ');
+      tooltip.style.display='block';
+    }).on('mousemove',function(e){tooltip.style.left=(e.clientX+15)+'px';tooltip.style.top=(e.clientY-42)+'px';})
+    .on('mouseleave',function(){this.classList.remove('hovered');tooltip.style.display='none';})
+    .on('click',function(){selectRegion(region.id,region.label,beaches);});
+  });
+  document.getElementById('map-loading').style.display='none';
+
+  // D3 zoom — scroll/pinch to zoom, drag to pan
+  const BASE_LABEL_SIZE = 7.5;   // px at scale 1
+  const BASE_LABEL_STROKE = 3;   // px at scale 1
+  const BASE_PIN_R   = 9;        // pin background radius at scale 1
+  const BASE_DOT_R   = 3.5;      // centre dot radius at scale 1
+  const BASE_PULSE_R = 7;        // pulse start radius at scale 1
+
+  const zoom = d3.zoom()
+    .scaleExtent([1, 7])
+    .translateExtent([[-W * 0.5, -H * 0.5],[W * 1.5, H * 1.5]])
+    .filter(event => {
+      return event.type === 'wheel' || event.type === 'touchstart' || event.type === 'mousedown';
+    })
+    .on('zoom', (event) => {
+      applyZoomScale(event.transform);
+    });
+
+  function applyZoomScale(t) {
+    zoomG.attr('transform', t);
+    const k    = t.k;
+    const invK = 1 / k;
+
+    // Labels scale inversely with zoom — no floor, true proportional shrink
+    // At k=1: 7.5px. k=2: 3.75px. k=3: 2.5px. k=6: 1.25px.
+    const labelSize   = BASE_LABEL_SIZE * invK;
+    const labelStroke = BASE_LABEL_STROKE * invK;
+
+    svg.selectAll('.pin-label')
+      .attr('font-size', labelSize)
+      .style('stroke-width', labelStroke + 'px')
+      .style('opacity', 1)
+      // Move label closer to pin centre as zoom increases
+      // At k=1: full offset. At k=3: offset * 0.5. Label hugs pin at high zoom.
+      .attr('y', function() {
+        const rid = d3.select(this.parentNode).attr('data-region');
+        const base = (LABEL_OFFSET[rid] || [0,20])[1];
+        return base * invK;
+      })
+      .attr('x', function() {
+        const rid = d3.select(this.parentNode).attr('data-region');
+        const base = (LABEL_OFFSET[rid] || [0,20])[0];
+        return base * invK;
+      });
+
+    // Pins: shrink gently at high zoom
+    const pinScale = Math.min(1, 1.3 * invK + 0.25);
+    svg.selectAll('.pin-bg')   .attr('r', Math.max(5,   BASE_PIN_R   * pinScale));
+    svg.selectAll('.pin-dot')  .attr('r', Math.max(2.5, BASE_DOT_R   * pinScale));
+    svg.selectAll('.pin-pulse').attr('r', Math.max(4,   BASE_PULSE_R * pinScale));
+  }
+
+  svg.call(zoom);
+
+  // Start slightly zoomed in (1.3x) so map fills frame better
+  const initialScale = 1.15;
+  const tx = (W - W * initialScale) / 2;
+  const ty = (H - H * initialScale) / 2;
+  const initialTransform = d3.zoomIdentity.translate(tx, ty).scale(initialScale);
+  svg.call(zoom.transform, initialTransform);
+  // Apply inverse scaling immediately so labels are correct from first render
+  applyZoomScale(initialTransform);
+}
+
+function selectRegion(rid,rname,beaches){
+  document.querySelectorAll('.pin-group').forEach(p=>p.classList.remove('selected','hovered'));
+  const pin=document.querySelector('.pin-group[data-region="'+rid+'"]');
+  if(pin)pin.classList.add('selected');
+  openSheet(rid,rname,beaches);
+}
+
+function goToDashboard(){
+  if(!selectedId)return;
+  // Tell parent preview page to switch to conditions tab with this region
+  if(window.parent && window.parent !== window){
+    window.parent.postMessage({type:'swellcast-navigate',region:selectedId,regionName:selectedName},'*');
+  } else {
+    window.location.href=`dashboard.html?region=${encodeURIComponent(selectedId)}&regionName=${encodeURIComponent(selectedName)}`;
+  }
+}
+
+buildMap().then(()=>{applyPinFilter();refreshFavCount();});
+</script>
+<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{});});}</script>
+</body>
+</html>

@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SwellCast — Live Preview</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;min-height:100vh;background:#06111c;font-family:'DM Sans',sans-serif;color:#ddeee8}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;background-image:radial-gradient(rgba(38,196,154,0.1) 1px,transparent 1px);background-size:28px 28px}
+body::after{content:'';position:fixed;z-index:0;pointer-events:none;width:700px;height:700px;top:50%;left:50%;transform:translate(-50%,-50%);background:radial-gradient(ellipse,rgba(26,140,110,0.1) 0%,transparent 68%)}
+.page{position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:2rem 1.5rem 3rem;gap:1.75rem}
+.meta-bar{width:100%;max-width:440px;display:flex;align-items:center;justify-content:space-between}
+.meta-logo{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:0.08em}
+.meta-logo span{color:#26c49a}
+.meta-info{font-family:'DM Mono',monospace;font-size:0.55rem;letter-spacing:0.1em;text-transform:uppercase;color:#3d6070;text-align:right;line-height:1.6}
+.headline{text-align:center;width:100%;max-width:440px}
+.headline h1{font-family:'Bebas Neue',sans-serif;font-size:clamp(1.9rem,7vw,3rem);letter-spacing:0.05em;line-height:1.05;color:#ddeee8}
+.headline h1 em{font-style:normal;color:#26c49a}
+.headline p{font-family:'DM Mono',monospace;font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;color:#3d6070;margin-top:0.5rem}
+.page-switcher{display:flex;gap:6px;width:100%;max-width:375px}
+.sw-btn{flex:1;padding:8px 0;border-radius:10px;font-family:'DM Mono',monospace;font-size:0.6rem;letter-spacing:0.08em;text-transform:uppercase;border:0.5px solid rgba(38,196,154,0.2);background:transparent;color:#5a8098;cursor:pointer;transition:all 0.15s}
+.sw-btn:hover{border-color:#26c49a;color:#26c49a;background:rgba(38,196,154,0.06)}
+.sw-btn.active{border-color:#26c49a;color:#26c49a;background:rgba(38,196,154,0.1)}
+/* Phone */
+.phone-outer{background:#0a1a28;border-radius:52px;padding:6px;box-shadow:0 0 0 1px rgba(38,196,154,0.15),0 50px 120px rgba(0,0,0,0.85),0 0 80px rgba(26,140,110,0.07)}
+.phone{width:375px;height:760px;background:#040d15;border-radius:46px;overflow:hidden;position:relative;border:0.5px solid rgba(38,196,154,0.12)}
+.notch{position:absolute;top:12px;left:50%;transform:translateX(-50%);width:112px;height:30px;background:#06111c;border-radius:20px;z-index:10;display:flex;align-items:center;justify-content:center;gap:7px;border:0.5px solid rgba(38,196,154,0.08)}
+.notch-cam{width:10px;height:10px;border-radius:50%;background:#0d1e2c;border:0.5px solid rgba(38,196,154,0.12)}
+.notch-pill{width:40px;height:5px;border-radius:3px;background:#0d1e2c;border:0.5px solid rgba(38,196,154,0.08)}
+.status-bar{position:absolute;top:0;left:0;right:0;height:52px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 22px 8px;z-index:9;pointer-events:none}
+.s-time{font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;color:rgba(210,235,230,0.85)}
+.s-icons{display:flex;align-items:center;gap:5px}
+.s-icons svg{width:15px;height:15px}
+.tabs{position:absolute;bottom:0;left:0;right:0;height:68px;background:rgba(4,13,21,0.98);border-top:0.5px solid rgba(38,196,154,0.1);display:flex;align-items:center;justify-content:center;gap:0;z-index:50;padding:0 8px 14px}
+.tab-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:6px 4px;background:transparent;border:none;cursor:pointer;border-radius:10px;transition:background 0.15s}
+.tab-btn:active{background:rgba(38,196,154,0.06)}
+.tab-icon{width:21px;height:21px;stroke:#3a5870;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;transition:stroke 0.15s}
+.tab-lbl{font-family:'DM Mono',monospace;font-size:0.46rem;letter-spacing:0.08em;text-transform:uppercase;color:#3a5870;transition:color 0.15s}
+.tab-btn.active .tab-icon{stroke:#26c49a}
+.tab-btn.active .tab-lbl{color:#26c49a}
+.home-bar{position:absolute;bottom:7px;left:50%;transform:translateX(-50%);width:110px;height:3px;border-radius:2px;background:rgba(210,235,230,0.18);z-index:51;pointer-events:none}
+.phone-content{position:absolute;top:52px;left:0;right:0;bottom:68px;overflow:hidden}
+.phone-content iframe{width:100%;height:100%;border:none;display:block}
+.pills{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;width:100%;max-width:440px}
+.pill{display:flex;align-items:center;gap:5px;padding:5px 11px;border-radius:20px;border:0.5px solid rgba(38,196,154,0.13);background:rgba(10,32,53,0.5);font-family:'DM Mono',monospace;font-size:0.53rem;letter-spacing:0.07em;text-transform:uppercase;color:#3a5870}
+.pill svg{width:10px;height:10px;stroke:#26c49a;fill:none;stroke-width:1.5;stroke-linecap:round}
+
+@media(max-width:480px){
+  .page{padding:0;gap:0;justify-content:flex-start}
+  .meta-bar,.headline,.page-switcher,.pills{display:none}
+  .phone-outer{padding:0;border-radius:0;box-shadow:none;background:none}
+  .phone{width:100vw;height:100svh;border-radius:0;border:none}
+  .notch,.status-bar{display:none}
+  .phone-content{top:0;bottom:68px}
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="meta-bar">
+    <div class="meta-logo">SWELL<span>CAST</span></div>
+    <div class="meta-info">VDES39915 · Winter 2026<br>Kristen Clark</div>
+  </div>
+
+  <div class="headline">
+    <h1>Live <em>Surf Conditions</em><br>Anywhere on Earth</h1>
+    <p>Open-Meteo Marine API · 11 global surf regions · Real-time data</p>
+  </div>
+
+  <div class="page-switcher">
+    <button class="sw-btn active" id="btn-map" onclick="showPage('map')">◉ World Map</button>
+    <button class="sw-btn" id="btn-dash" onclick="showPage('dash')">◎ Live Conditions</button>
+  </div>
+
+  <div class="phone-outer">
+    <div class="phone">
+
+      <div class="notch">
+        <div class="notch-cam"></div>
+        <div class="notch-pill"></div>
+        <div class="notch-cam"></div>
+      </div>
+
+      <div class="status-bar">
+        <span class="s-time">9:41</span>
+        <div class="s-icons">
+          <svg viewBox="0 0 15 12" fill="rgba(210,235,230,0.75)">
+            <rect x="0" y="8" width="2.5" height="4" rx="0.5"/>
+            <rect x="3.5" y="5" width="2.5" height="7" rx="0.5"/>
+            <rect x="7" y="2.5" width="2.5" height="9.5" rx="0.5"/>
+            <rect x="10.5" y="0" width="2.5" height="12" rx="0.5" opacity="0.3"/>
+          </svg>
+          <svg viewBox="0 0 17 12" fill="none" stroke="rgba(210,235,230,0.75)" stroke-width="1.5" stroke-linecap="round">
+            <path d="M1 4C4 1 13 1 16 4"/>
+            <path d="M3.5 7C5.5 5 11.5 5 13.5 7"/>
+            <path d="M6.5 10C7.5 9 9.5 9 10.5 10"/>
+            <circle cx="8.5" cy="11.5" r="0.7" fill="rgba(210,235,230,0.75)"/>
+          </svg>
+          <svg viewBox="0 0 24 12" fill="none">
+            <rect x="0.5" y="0.5" width="20" height="11" rx="3.5" stroke="rgba(210,235,230,0.5)" stroke-width="1"/>
+            <rect x="2" y="2" width="15" height="8" rx="2" fill="rgba(38,196,154,0.85)"/>
+            <path d="M21.5 4v4" stroke="rgba(210,235,230,0.35)" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="phone-content">
+        <iframe id="frame-map"  src="map.html" title="SwellCast Map" style="display:block"></iframe>
+        <iframe id="frame-dash" src="about:blank" data-src="dashboard.html" title="Dashboard" style="display:none"></iframe>
+      </div>
+
+      <div class="tabs">
+        <button class="tab-btn active" id="tab-map" onclick="showPage('map')">
+          <svg class="tab-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+          <span class="tab-lbl">Map</span>
+        </button>
+        <button class="tab-btn" id="tab-dash" onclick="showPage('dash')">
+          <svg class="tab-icon" viewBox="0 0 24 24"><path d="M2 20h5V12H2zM9 20h5V4H9zM16 20h5V9h-5z"/></svg>
+          <span class="tab-lbl">Conditions</span>
+        </button>
+        <button class="tab-btn" id="tab-fav" onclick="showPage('fav')">
+          <svg class="tab-icon" viewBox="0 0 24 24"><path d="M12 21S4.5 13.5 4.5 8A7.5 7.5 0 0112 3a7.5 7.5 0 017.5 5c0 5.5-7.5 13-7.5 13z"/></svg>
+          <span class="tab-lbl">Favourites</span>
+        </button>
+      </div>
+
+      <div class="home-bar"></div>
+    </div>
+  </div>
+
+  <div class="pills">
+    <div class="pill"><svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/></svg>11 regions</div>
+    <div class="pill"><svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>Live API</div>
+    <div class="pill"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>Search</div>
+    <div class="pill"><svg viewBox="0 0 24 24"><path d="M12 21S4.5 13.5 4.5 8A7.5 7.5 0 0112 3a7.5 7.5 0 017.5 5c0 5.5-7.5 13-7.5 13z"/></svg>Favourites</div>
+    <div class="pill"><svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>7-day forecast</div>
+  </div>
+
+</div>
+<script>
+const BEACH_FAV_KEY = 'swellcast_fav_beaches';
+const REG_FAV_KEY   = 'swellcast_fav_regions';
+function getBeachFavs() {
+  // 1. Our own sessionStorage (synced via postMessage from dashboard)
+  try {
+    const own = JSON.parse(sessionStorage.getItem(BEACH_FAV_KEY)||'[]');
+    if (own.length) return own;
+  } catch(e) {}
+  // 2. Fallback: try reading directly from the dashboard iframe
+  try {
+    const dashFrame = document.getElementById('frame-dash');
+    if (dashFrame && dashFrame.contentWindow && dashFrame.src && dashFrame.src !== 'about:blank') {
+      const fromDash = dashFrame.contentWindow.sessionStorage.getItem(BEACH_FAV_KEY);
+      if (fromDash) {
+        const parsed = JSON.parse(fromDash)||[];
+        // Sync back so next call is fast
+        if (parsed.length) sessionStorage.setItem(BEACH_FAV_KEY, fromDash);
+        return parsed;
+      }
+    }
+  } catch(e) {}
+  return [];
+}
+function getRegFavs() {
+  try {
+    const own = JSON.parse(sessionStorage.getItem(REG_FAV_KEY)||'[]');
+    if (own.length) return own;
+    const mapFrame = document.getElementById('frame-map');
+    if (mapFrame && mapFrame.contentWindow) {
+      const fromFrame = mapFrame.contentWindow.sessionStorage.getItem(REG_FAV_KEY);
+      if (fromFrame) return JSON.parse(fromFrame)||[];
+    }
+    return [];
+  } catch(e) { return []; }
+}
+
+function showPage(page, region, regionName) {
+  const frameDash = document.getElementById('frame-dash');
+  const frameMap  = document.getElementById('frame-map');
+
+  // Hide all frames first
+  frameMap.style.display  = 'none';
+  frameDash.style.display = 'none';
+
+  // Top switcher
+  document.getElementById('btn-map').classList.toggle('active',  page === 'map');
+  document.getElementById('btn-dash').classList.toggle('active', page === 'dash');
+
+  // Tab bar
+  document.getElementById('tab-map').classList.toggle('active',  page === 'map');
+  document.getElementById('tab-dash').classList.toggle('active', page === 'dash');
+  document.getElementById('tab-fav').classList.toggle('active',  page === 'fav');
+
+  if (page === 'map') {
+    frameMap.style.display = 'block';
+
+  } else if (page === 'dash') {
+    // Navigate dash iframe to the chosen region
+    const r  = region     || 'hawaii';
+    const rn = regionName || 'Hawaii';
+    const url = `dashboard.html?region=${encodeURIComponent(r)}&regionName=${encodeURIComponent(rn)}`;
+    if (frameDash.getAttribute('data-current') !== url) {
+      frameDash.src = url;
+      frameDash.setAttribute('data-current', url);
+    }
+    frameDash.style.display = 'block';
+
+  } else if (page === 'fav') {
+    // Sync beach favs from dash iframe first
+    try {
+      const df = document.getElementById('frame-dash');
+      if (df && df.contentWindow && df.src && df.src !== 'about:blank') {
+        const raw = df.contentWindow.sessionStorage.getItem('swellcast_fav_beaches');
+        if (raw) sessionStorage.setItem('swellcast_fav_beaches', raw);
+      }
+    } catch(e) {}
+
+    const favBeaches = getBeachFavs();
+    const favRegions = getRegFavs();
+
+    // Pass favs via URL so dashboard iframe can use them without sessionStorage issues
+    const bp = encodeURIComponent(JSON.stringify(favBeaches));
+    const rp = encodeURIComponent(JSON.stringify(favRegions));
+    const url = `dashboard.html?favOnly=1&favBeaches=${bp}&favRegions=${rp}`;
+
+    // Always reload so latest favs are shown
+    frameDash.src = url;
+    frameDash.setAttribute('data-current', url);
+    frameDash.style.display = 'block';
+  }
+}
+
+// Listen for messages from any child iframe
+window.addEventListener('message', (e) => {
+  if (!e.data) return;
+
+  if (e.data.type === 'swellcast-navigate') {
+    const frameDash = document.getElementById('frame-dash');
+    frameDash.removeAttribute('data-current');
+    showPage('dash', e.data.region, e.data.regionName);
+  }
+
+  if (e.data.type === 'swellcast-beach-favs') {
+    // Sync beach favs from dashboard iframe into our own sessionStorage
+    try {
+      sessionStorage.setItem('swellcast_fav_beaches', JSON.stringify(e.data.favs));
+    } catch(err) {}
+  }
+});
+
+// Start on map
+showPage('map');
+</script>
+</body>
+</html>
